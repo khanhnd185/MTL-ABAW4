@@ -52,7 +52,7 @@ def generate_output(filename, img, va, ex, au):
 def main():
     parser = argparse.ArgumentParser(description='Validate task')
     parser.add_argument('--input', '-i', default='', help='Input file')
-    parser.add_argument('--net', '-n', default='mefarg', help='Net name')
+    parser.add_argument('--net', '-n', default='amtl', help='Net name')
     parser.add_argument('--batch', '-b', type=int, default=256, help='Batch size')
     args = parser.parse_args()
     resume = args.input
@@ -65,10 +65,10 @@ def main():
     testset = ImageSAW2(test_file, image_path)
     testldr = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=0)
 
-    if net_name == 'mefarg':
-        net = MTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
-    else:
+    if net_name == 'amtl':
         net = AMTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
+    else:
+        net = MTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
 
     if resume != '':
         print("Resume form | {} ]".format(resume))

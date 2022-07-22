@@ -22,7 +22,9 @@ pip install timm==0.4.5
 
 # Pretrained Model
 
-The pretrained model can be downloaded from this [link](https://ejnu-my.sharepoint.com/:u:/g/personal/nguyendangkhanh_jnu_ac_kr/Ed1cbTz_L3JFo9Wam6MYHu0B5Cot0hLRZmG2-SvWQ6Im3g?e=yL7R90). 
+The pretrained model can be downloaded from this [link](https://ejnu-my.sharepoint.com/:u:/g/personal/nguyendangkhanh_jnu_ac_kr/EcdgOgEt1lxDj0wxrnsmVmwBYaH86WfNKBL6Zn_DWY7knQ?e=UHiVoY).
+
+s-Aff-Wild2 extracted feature: [no augmented](https://ejnu-my.sharepoint.com/:u:/g/personal/nguyendangkhanh_jnu_ac_kr/Ea1D2zMMhQRIkSfA1KGYUogBpt4VWBwvZC7L2cYvFpeBvA?e=d5VrtV) and [augmented](https://ejnu-my.sharepoint.com/:u:/g/personal/nguyendangkhanh_jnu_ac_kr/EabgoTcAN_hPs9-8Efd1VB4BbKyoqWQX0IK5TivpASfq7A?e=dAVJVd)
 
 This model was trained on the training set of the Aff-wild2 dataset, and evaluated on the validation set of the Aff-wild2 dataset.
 

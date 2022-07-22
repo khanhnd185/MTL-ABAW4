@@ -1,7 +1,7 @@
 import os
 import pickle
 import pandas as pd
-from dataset import UniSAW2, UniRawSAW2
+from dataset import UniSAW2
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from helpers import *
@@ -83,7 +83,7 @@ def val(net, validldr, criteria, task):
 def main():
     parser = argparse.ArgumentParser(description='Train task seperately')
 
-    parser.add_argument('--net', '-n', default='amefarg', help='Net name')
+    parser.add_argument('--net', '-n', default='amtl', help='Net name')
     parser.add_argument('--input', '-i', default='', help='Input file')
     parser.add_argument('--task', '-t', default='AU', help='Task')
     parser.add_argument('--batch', '-b', type=int, default=256, help='Batch size')
@@ -115,10 +115,10 @@ def main():
     validldr = DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     start_epoch = 0
-    if net_name == 'mefarg':
-        net = MTL(in_channels=1288)
-    else:
+    if net_name == 'amtl':
         net = AMTL(in_channels=1288)
+    else:
+        net = MTL(in_channels=1288)
 
     train_ex_weight = torch.from_numpy(trainset.ex_weight())
     valid_ex_weight = torch.from_numpy(validset.ex_weight())
