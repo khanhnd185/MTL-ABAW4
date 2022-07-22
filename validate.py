@@ -5,19 +5,11 @@ from dataset import SAW2, RawSAW2
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from helpers import *
-from model import MEFARG, AMEFARG
+from model import MTL, AMTL
 import torch.optim as optim
 import argparse
 
-
-batch_size = 256
-num_workers = 0
-epochs = 20
 DATA_DIR = '../../../Data/ABAW4/'
-learning_rate = 1e-3
-resume = ''
-output_dir = './results'
-early_stop = None
 
 def val(net, validldr):
     net.eval()
@@ -92,25 +84,27 @@ def val(net, validldr):
 
 def main():
     parser = argparse.ArgumentParser(description='Validate task')
-    parser.add_argument('--input', '-i', default='2.pth', help='Input file')
+    parser.add_argument('--input', '-i', default='', help='Input file')
     parser.add_argument('--net', '-n', default='mefarg', help='Net name')
+    parser.add_argument('--batch', '-b', type=int, default=256, help='Batch size')
     args = parser.parse_args()
     resume = args.input
     net_name = args.net
+    batch_size = args.batch
 
     valid_file = os.path.join(DATA_DIR, 'validation_set_annotations.txt')
     image_path = os.path.join(DATA_DIR,'cropped_aligned')
-    with open(os.path.join(DATA_DIR, 'enet0_8.pickle'), 'rb') as handle:
+    with open(os.path.join(DATA_DIR, 'saw2_enet_b0_8_best_vgaf.pickle'), 'rb') as handle:
         filename2featuresAll=pickle.load(handle)
 
     validset = SAW2(valid_file, filename2featuresAll)
     validset = RawSAW2(valid_file, image_path)
-    validldr = DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    validldr = DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     if net_name == 'mefarg':
-        net = MEFARG(in_channels=1288, e2e=True)
+        net = MTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
     else:
-        net = AMEFARG(in_channels=1288)
+        net = AMTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
 
     if resume != '':
         print("Resume form | {} ]".format(resume))

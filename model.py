@@ -10,12 +10,6 @@ from block import *
 class GNN(nn.Module):
     def __init__(self, in_channels, num_classes, neighbor_num=4, metric='dots'):
         super(GNN, self).__init__()
-        # in_channels: dim of node feature
-        # num_classes: num of nodes
-        # neighbor_num: K in paper and we select the top-K nearest neighbors for each node feature.
-        # metric: metric for assessing node similarity. Used in FGG module to build a dynamical graph
-        # X' = ReLU(X + BN(V(X) + A x U(X)) )
-
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.relu = nn.ReLU()
@@ -67,9 +61,9 @@ class GNN(nn.Module):
         return x
 
 
-class Head(nn.Module):
+class ANFL(nn.Module):
     def __init__(self, in_channels, num_classes, neighbor_num=4, metric='dots'):
-        super(Head, self).__init__()
+        super(ANFL, self).__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
         class_linear_layers = []
@@ -114,61 +108,69 @@ class Extractor(nn.Module):
         x = torch.cat((x, score), dim=-1)
         return x
 
-
-class MEFARG(nn.Module):
-    def __init__(self, in_channels=1288, neighbor_num=4, metric='dots', e2e=False):
-        super(MEFARG, self).__init__()
-        self.num_classes   = 12
-        self.AU_metric_dim = 16
+class MTL(nn.Module):
+    def __init__(self, in_channels=1288, neighbor_num=4, metric='dots', extractor=None, e2e=False):
+        super(MTL, self).__init__()
+        self.AU_metric_dim = 12
         self.EX_metric_dim = 8
         self.VA_metric_dim = 2
 
-        if e2e:
-            self.extractor = Extractor('./model/enet_b0_8_best_vgaf.pt')
+        if extractor is not None:
+            self.extractor = Extractor(extractor)
         else:
             self.extractor = nn.Identity()
 
         self.in_channels = in_channels
         self.out_channels = self.in_channels
         self.global_linear = Dense(self.in_channels, self.out_channels, bn=True, drop=0.5)
-        self.head = Head(self.out_channels, self.num_classes, neighbor_num, metric)
+        self.au = ANFL(self.out_channels, self.AU_metric_dim, neighbor_num, metric)
 
-        self.va = Dense(in_channels, 2, activation='tanh', bn=True)
-        self.ex = Dense(in_channels, 8, activation='none')
+        self.va = Dense(in_channels, self.VA_metric_dim, activation='tanh', bn=True)
+        self.ex = Dense(in_channels, self.EX_metric_dim, activation='none')
 
         for p in self.extractor.parameters():
             p.requires_grad = False
     def forward(self, x):
-        # x: b d c
-        # x = self.global_linear(x)
         x = self.extractor(x)
-        au, f_v = self.head(x)
+        au, f_v = self.au(x)
         va = self.va(x)
         ex = self.ex(x)
 
         return va, ex, au
 
-class AMEFARG(nn.Module):
-    def __init__(self, in_channels=1288, neighbor_num=4, metric='dots'):
-        super(AMEFARG, self).__init__()
-        self.num_classes   = 12
-        self.AU_metric_dim = 16
-        self.attention_dim = 128
+class AMTL(nn.Module):
+    def __init__(self, in_channels=1288, neighbor_num=4, metric='dots', extractor=None, freeze_au=True):
+        super(AMTL, self).__init__()
+        self.AU_metric_dim = 12
+        self.EX_metric_dim = 8
+        self.VA_metric_dim = 2
+        self.attention_dim = 64
+
+        if extractor is not None:
+            self.extractor = Extractor(extractor)
+        else:
+            self.extractor = nn.Identity()
 
         self.in_channels = in_channels
         self.out_channels = self.in_channels
-        self.head = Head(self.out_channels, self.num_classes, neighbor_num, metric)
+        self.au = ANFL(self.out_channels, self.AU_metric_dim, neighbor_num, metric)
 
-        self.va = Dense(in_channels, 2, activation='tanh', bn=True)
-        self.ex = Dense(in_channels, 8, activation='none')
+        self.va = Dense(in_channels, self.VA_metric_dim, activation='tanh', bn=True)
+        self.ex = Dense(in_channels, self.EX_metric_dim, activation='none')
 
-        self.attention = AdditiveAttention(1, 12, 64)
+        self.attention = AdditiveAttention(1, self.AU_metric_dim, self.attention_dim)
 
-        for p in self.head.parameters():
+        for p in self.extractor.parameters():
             p.requires_grad = False
+
+        if freeze_au:
+            for p in self.au.parameters():
+                p.requires_grad = False
+
             
     def forward(self, x):
-        au, f_v = self.head(x)
+        x = self.extractor(x)
+        au, f_v = self.au(x)
         va = self.va(x)
         ex = self.ex(x)
 

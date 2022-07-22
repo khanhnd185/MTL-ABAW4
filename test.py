@@ -6,19 +6,11 @@ from dataset import SAW2, ImageSAW2
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from helpers import *
-from model import MEFARG, AMEFARG
+from model import MTL, AMTL
 import torch.optim as optim
 import argparse
 
-
-batch_size = 256
-num_workers = 0
-epochs = 20
 DATA_DIR = '../../../Data/ABAW4/'
-learning_rate = 1e-3
-resume = ''
-output_dir = './results'
-early_stop = None
 
 def test(net, testldr):
     net.eval()
@@ -46,6 +38,7 @@ def test(net, testldr):
 
 def generate_output(filename, img, va, ex, au):
     with open(os.path.join(DATA_DIR, 'testset', filename+'.txt'), 'w') as f:
+        print(va.shape, ex.shape, au.shape)
         f.write("image,valence,arousal,expression,aus\n")
 
         for i, name in enumerate(img):
@@ -58,24 +51,24 @@ def generate_output(filename, img, va, ex, au):
 
 def main():
     parser = argparse.ArgumentParser(description='Validate task')
-    parser.add_argument('--input', '-i', default='2.pth', help='Input file')
+    parser.add_argument('--input', '-i', default='', help='Input file')
     parser.add_argument('--net', '-n', default='mefarg', help='Net name')
+    parser.add_argument('--batch', '-b', type=int, default=256, help='Batch size')
     args = parser.parse_args()
     resume = args.input
     net_name = args.net
+    batch_size = args.batch
 
     test_file = os.path.join(DATA_DIR, 'testset', 'MTL_Challenge_test_set_release.txt')
     image_path = os.path.join(DATA_DIR, 'testset', 'cropped_aligned')
-    with open(os.path.join(DATA_DIR, 'enet0_8.pickle'), 'rb') as handle:
-        filename2featuresAll=pickle.load(handle)
 
     testset = ImageSAW2(test_file, image_path)
-    testldr = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    testldr = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     if net_name == 'mefarg':
-        net = MEFARG(in_channels=1288, e2e=True)
+        net = MTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
     else:
-        net = AMEFARG(in_channels=1288)
+        net = AMTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
 
     if resume != '':
         print("Resume form | {} ]".format(resume))

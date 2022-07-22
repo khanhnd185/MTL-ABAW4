@@ -5,7 +5,7 @@ from dataset import UniSAW2, UniRawSAW2
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from helpers import *
-from model import MEFARG, AMEFARG
+from model import MTL, AMTL
 import torch.optim as optim
 import argparse
 from sam import SAM
@@ -103,9 +103,9 @@ def main():
     valid_file = os.path.join(DATA_DIR, 'validation_set_annotations.txt')
     image_path = os.path.join(DATA_DIR,'cropped_aligned')
 
-    with open(os.path.join(DATA_DIR, 'saw2_enet_b0_abaw3.pickle'), 'rb') as handle:
+    with open(os.path.join(DATA_DIR, 'saw2_enet_b0_8_best_vgaf_aug.pickle'), 'rb') as handle:
         filename2featuresAll=pickle.load(handle)
-    with open(os.path.join(DATA_DIR, 'enet0_8.pickle'), 'rb') as handle:
+    with open(os.path.join(DATA_DIR, 'saw2_enet_b0_8_best_vgaf.pickle'), 'rb') as handle:
         filename2featuresAll_val=pickle.load(handle)
 
     trainset = UniSAW2(train_file, filename2featuresAll, task)
@@ -116,9 +116,9 @@ def main():
 
     start_epoch = 0
     if net_name == 'mefarg':
-        net = MEFARG(in_channels=1288)
+        net = MTL(in_channels=1288)
     else:
-        net = AMEFARG(in_channels=1288)
+        net = AMTL(in_channels=1288)
 
     train_ex_weight = torch.from_numpy(trainset.ex_weight())
     valid_ex_weight = torch.from_numpy(validset.ex_weight())
