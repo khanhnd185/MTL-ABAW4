@@ -4,9 +4,9 @@ This is the source code of our proposed method [Multi-task Cross Attention Netwo
 
 We (CNU_Sclab Team) paticipated in [ABAW 4th MTL Challenge](https://ibug.doc.ic.ac.uk/resources/eccv-2023-4th-abaw/).
 
-We borrow the [SAM optimizer](https://github.com/davda54/sam) source code for Pytorch and reference the ANFL of [this paper](https://arxiv.org/abs/2205.01782)
+We borrowed the [SAM optimizer](https://github.com/davda54/sam) source code for Pytorch and refered to the ANFL of [this paper](https://arxiv.org/abs/2205.01782)
 
-In addition, we use pre-train EfficientNet B0 on  Facial Behavior Tasks of Savchenko in [this project](https://github.com/HSE-asavchenko/face-emotion-recognition)
+In addition, we used pre-train EfficientNet B0 on  Facial Behavior Tasks of Savchenko in [this project](https://github.com/HSE-asavchenko/face-emotion-recognition)
 
 # Dependency
 
