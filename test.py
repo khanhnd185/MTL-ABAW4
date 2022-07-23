@@ -1,16 +1,10 @@
-import enum
 import os
-import pickle
-import pandas as pd
-from dataset import SAW2, ImageSAW2
-from tqdm import tqdm
-from torch.utils.data import DataLoader
-from helpers import *
-from model import MTL, AMTL
-import torch.optim as optim
 import argparse
-
-DATA_DIR = '../../../Data/ABAW4/'
+from tqdm import tqdm
+from model import MTL, AMTL
+from dataset import ImageSAW2
+from helpers import *
+from torch.utils.data import DataLoader
 
 def test(net, testldr):
     net.eval()
@@ -37,7 +31,7 @@ def test(net, testldr):
     return all_yhat_va, all_yhat_ex, all_yhat_au
 
 def generate_output(filename, img, va, ex, au):
-    with open(os.path.join(DATA_DIR, 'testset', filename+'.txt'), 'w') as f:
+    with open(filename, 'w') as f:
         print(va.shape, ex.shape, au.shape)
         f.write("image,valence,arousal,expression,aus\n")
 
@@ -50,25 +44,29 @@ def generate_output(filename, img, va, ex, au):
             f.write(infostr)
 
 def main():
-    parser = argparse.ArgumentParser(description='Validate task')
+    parser = argparse.ArgumentParser(description='Generate output for test set')
     parser.add_argument('--input', '-i', default='', help='Input file')
     parser.add_argument('--net', '-n', default='amtl', help='Net name')
     parser.add_argument('--batch', '-b', type=int, default=256, help='Batch size')
+    parser.add_argument('--datadir', '-d', default='../../../Data/ABAW4/', help='Data folder path')
+    parser.add_argument('--extractor', '-e', default='enet_b0_8_best_vgaf.pt', help='Extractor name')
     args = parser.parse_args()
     resume = args.input
     net_name = args.net
+    data_dir = args.datadir
     batch_size = args.batch
+    extractor_path = './model/' + args.extractor
 
-    test_file = os.path.join(DATA_DIR, 'testset', 'MTL_Challenge_test_set_release.txt')
-    image_path = os.path.join(DATA_DIR, 'testset', 'cropped_aligned')
+    test_file = os.path.join(data_dir, 'testset', 'MTL_Challenge_test_set_release.txt')
+    image_path = os.path.join(data_dir, 'testset', 'cropped_aligned')
 
     testset = ImageSAW2(test_file, image_path)
     testldr = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     if net_name == 'amtl':
-        net = AMTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
+        net = AMTL(extractor=extractor_path)
     else:
-        net = MTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
+        net = MTL(extractor=extractor_path)
 
     if resume != '':
         print("Resume form | {} ]".format(resume))
@@ -78,7 +76,8 @@ def main():
 
     va, ex, au = test(net, testldr)
 
-    generate_output(args.input, testset.X, va, ex, au)
+    filename = os.path.join(data_dir, 'testset', args.input + '.txt')
+    generate_output(filename, testset.X, va, ex, au)
 
 
 if __name__=="__main__":

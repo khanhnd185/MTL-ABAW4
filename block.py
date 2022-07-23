@@ -2,10 +2,6 @@ import torch
 import math
 import torch.nn as nn
 
-def bn_init(bn):
-    bn.weight.data.fill_(1)
-    bn.bias.data.zero_()
-
 class  Dense(nn.Module):
     def __init__(self, in_features, out_features, activation='none', bn=False, drop=0.0):
         super().__init__()
@@ -40,13 +36,11 @@ class  Dense(nn.Module):
         return x
 
 class AdditiveAttention(nn.Module):
-    """Additive attention."""
-    def __init__(self, key_size, query_size, num_hiddens, dropout=0):
+    def __init__(self, key_size, query_size, num_hiddens):
         super(AdditiveAttention, self).__init__()
         self.W_k = nn.Linear(key_size, num_hiddens, bias=False)
         self.W_q = nn.Linear(query_size, num_hiddens, bias=False)
         self.w_v = nn.Linear(num_hiddens, 1, bias=False)
-        # self.dropout = nn.Dropout(dropout)
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, queries, keys, values):

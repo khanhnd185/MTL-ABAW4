@@ -1,11 +1,9 @@
+import math
 import torch
 import torch.nn as nn
-import numpy as np
 import torch.nn.functional as F
-import math
-from helpers import normalize_digraph
 from block import *
-
+from helpers import normalize_digraph
 
 class GNN(nn.Module):
     def __init__(self, in_channels, num_classes, neighbor_num=4, metric='dots'):
@@ -16,12 +14,10 @@ class GNN(nn.Module):
         self.metric = metric
         self.neighbor_num = neighbor_num
 
-        # network
         self.U = nn.Linear(self.in_channels,self.in_channels)
         self.V = nn.Linear(self.in_channels,self.in_channels)
         self.bnv = nn.BatchNorm1d(num_classes)
 
-        # init
         self.U.weight.data.normal_(0, math.sqrt(2. / self.in_channels))
         self.V.weight.data.normal_(0, math.sqrt(2. / self.in_channels))
         self.bnv.weight.data.fill_(1)
@@ -30,7 +26,6 @@ class GNN(nn.Module):
     def forward(self, x):
         b, n, c = x.shape
 
-        # build dynamical graph
         if self.metric == 'dots':
             si = x.detach()
             si = torch.einsum('b i j , b j k -> b i k', si, si.transpose(1, 2))
@@ -54,7 +49,6 @@ class GNN(nn.Module):
         else:
             raise Exception("Error: wrong metric: ", self.metric)
 
-        # GNN process
         A = normalize_digraph(adj)
         aggregate = torch.einsum('b i j, b j k->b i k', A, self.V(x))
         x = self.relu(x + self.bnv(aggregate + self.U(x)))
@@ -109,7 +103,7 @@ class Extractor(nn.Module):
         return x
 
 class MTL(nn.Module):
-    def __init__(self, in_channels=1288, neighbor_num=4, metric='dots', extractor=None, e2e=False):
+    def __init__(self, in_channels=1288, neighbor_num=4, metric='dots', extractor=None, freeze_au=True):
         super(MTL, self).__init__()
         self.AU_metric_dim = 12
         self.EX_metric_dim = 8
@@ -130,6 +124,11 @@ class MTL(nn.Module):
 
         for p in self.extractor.parameters():
             p.requires_grad = False
+
+        if freeze_au:
+            for p in self.au.parameters():
+                p.requires_grad = False
+
     def forward(self, x):
         x = self.extractor(x)
         au, f_v = self.au(x)
@@ -166,7 +165,6 @@ class AMTL(nn.Module):
         if freeze_au:
             for p in self.au.parameters():
                 p.requires_grad = False
-
             
     def forward(self, x):
         x = self.extractor(x)

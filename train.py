@@ -1,16 +1,14 @@
 import os
 import pickle
-import pandas as pd
-from dataset import UniSAW2
-from tqdm import tqdm
-from torch.utils.data import DataLoader
-from helpers import *
-from model import MTL, AMTL
-import torch.optim as optim
 import argparse
+import pandas as pd
 from sam import SAM
+from tqdm import tqdm
+from model import MTL, AMTL
+from helpers import *
+from dataset import UniSAW2
+from torch.utils.data import DataLoader
 
-DATA_DIR = '../../../Data/ABAW4/'
 metric_func = {
     'VA': VA_metric,
     'EX': EX_metric,
@@ -40,7 +38,7 @@ def train(net, trainldr, optimizer, epoch, criteria, task):
         optimizer.first_step(zero_grad=True)
 
         yhat['VA'], yhat['EX'], yhat['AU'] = net(inputs)
-        criteria[task](yhat[task], y, mask).backward()  # make sure to do a full forward pass
+        criteria[task](yhat[task], y, mask).backward()
         optimizer.second_step(zero_grad=True)
 
         total_losses.update(loss.data.item(), inputs.size(0))
@@ -89,36 +87,41 @@ def main():
     parser.add_argument('--batch', '-b', type=int, default=256, help='Batch size')
     parser.add_argument('--epoch', '-e', type=int, default=100, help='Number of epoches')
     parser.add_argument('--lr', '-a', type=float, default=1e-3, help='Learning rate')
+    parser.add_argument('--datadir', '-d', default='../../../Data/ABAW4/', help='Data folder path')
+    parser.add_argument('--tfeature', '-f', default='saw2_enet_b0_8_best_vgaf_aug.pickle', help='Train image feature')
+    parser.add_argument('--vfeature', '-v', default='saw2_enet_b0_8_best_vgaf.pickle', help='Validation image feature')
 
     args = parser.parse_args()
     task = args.task
+    epochs = args.epoch
     resume = args.input
     net_name = args.net
+    data_dir = args.datadir
     batch_size = args.batch
-    epochs = args.epoch
     learning_rate = args.lr
+    train_feature = args.tfeature
+    valid_feature = args.vfeature
     output_dir = 'train_' + net_name + '_uni_' + task 
 
-    train_file = os.path.join(DATA_DIR, 'training_set_annotations.txt')
-    valid_file = os.path.join(DATA_DIR, 'validation_set_annotations.txt')
-    image_path = os.path.join(DATA_DIR,'cropped_aligned')
+    train_file = os.path.join(data_dir, 'training_set_annotations.txt')
+    valid_file = os.path.join(data_dir, 'validation_set_annotations.txt')
 
-    with open(os.path.join(DATA_DIR, 'saw2_enet_b0_8_best_vgaf_aug.pickle'), 'rb') as handle:
-        filename2featuresAll=pickle.load(handle)
-    with open(os.path.join(DATA_DIR, 'saw2_enet_b0_8_best_vgaf.pickle'), 'rb') as handle:
-        filename2featuresAll_val=pickle.load(handle)
+    with open(os.path.join(data_dir, train_feature), 'rb') as handle:
+        train_feature_dict = pickle.load(handle)
+    with open(os.path.join(data_dir, valid_feature), 'rb') as handle:
+        valid_feature_dict = pickle.load(handle)
 
-    trainset = UniSAW2(train_file, filename2featuresAll, task)
-    validset = UniSAW2(valid_file, filename2featuresAll_val, task)
+    trainset = UniSAW2(train_file, train_feature_dict, task)
+    validset = UniSAW2(valid_file, valid_feature_dict, task)
 
     trainldr = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
     validldr = DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     start_epoch = 0
     if net_name == 'amtl':
-        net = AMTL(in_channels=1288)
+        net = AMTL(freeze_au=(task != 'AU'))
     else:
-        net = MTL(in_channels=1288)
+        net = MTL(freeze_au=(task != 'AU'))
 
     train_ex_weight = torch.from_numpy(trainset.ex_weight())
     valid_ex_weight = torch.from_numpy(validset.ex_weight())

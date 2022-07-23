@@ -1,16 +1,13 @@
-from math import cos, pi
-from re import S
 import torch
-from torchvision import transforms
-from PIL import Image
-import torch.nn as nn
 import numpy as np
-import torch.nn.functional as F
+import torch.nn as nn
 import torch 
 import torch.nn as nn
 import torch.nn.functional as F
+from math import cos, pi
 from sklearn.metrics import f1_score
-import numpy as np
+
+EPS = 1e-8
 
 class AverageMeter(object):
     def __init__(self):
@@ -48,8 +45,6 @@ def load_state_dict(model,path):
     # load params
     model.load_state_dict(new_state_dict,strict=False)
     return model
-
-EPS = 1e-8
 
 class WeightedAsymmetricLoss(nn.Module):
     def __init__(self, eps=1e-8, disable_torch_grad=True, weight=None):

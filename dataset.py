@@ -1,9 +1,9 @@
 import os
-from PIL import Image
 import numpy as np
+from PIL import Image
+from torchvision import transforms
 from torch.utils.data import Dataset
 from sklearn.utils.class_weight import compute_class_weight
-from torchvision import transforms
 
 def pil_loader(path):
     with open(path, 'rb') as f:
@@ -12,116 +12,62 @@ def pil_loader(path):
 
 def get_dataset(filename, feature_dict, onlyfilename=False):
     with open(filename) as f:
-        mtl_lines = f.read().splitlines()
-    num_missed=0
-    X,y_va,y_expr,y_aus=[],[],[],[]
-    masks_va,masks_expr,masks_aus=[],[],[]
-    for line in mtl_lines[1:]:
-        splitted_line=line.split(',')
-        imagename=splitted_line[0]
-        valence=float(splitted_line[1])
-        arousal=float(splitted_line[2])
-        expression=int(splitted_line[3])
-        aus=list(map(int,splitted_line[4:]))
+        lines = f.read().splitlines()
+    num_missed = 0
+    X, y_va, y_ex, y_au = [], [], [], []
+    masks_va, masks_ex, masks_au = [], [], []
+
+    for line in lines[1:]:
+        splitted_line = line.split(',')
+        imagename = splitted_line[0]
+        valence = float(splitted_line[1])
+        arousal = float(splitted_line[2])
+        expression = int(splitted_line[3])
+        aus = list(map(int, splitted_line[4:]))
         
-        mask_VA=(valence>-5 and arousal>-5)
-        if not mask_VA:
-            valence=arousal=0
-            
-        mask_expr=(expression>-1)
-        if not mask_expr:
-            expression=0
-            
-        mask_aus=min(aus)>=0
-        if not mask_aus:
-            aus=[0]*len(aus)
-        if mask_VA or mask_expr or mask_aus:
+        mask_va = (valence > -5 and arousal > -5)
+        if not mask_va:
+            valence = arousal = 0
+        mask_ex = (expression > -1)
+        if not mask_ex:
+            expression = 0
+        mask_au = min(aus) >= 0
+        if not mask_au:
+            aus = [0]*len(aus)
+
+        if mask_va or mask_ex or mask_au:
             if imagename in feature_dict or onlyfilename:
-                #X.append(filename2featuresAll[imagename][0])
                 if onlyfilename:
                     X.append(imagename)
                 else:
-                    X.append(np.concatenate((feature_dict[imagename][0],feature_dict[imagename][1])))
-                y_va.append((valence,arousal))
-                masks_va.append(mask_VA)
+                    X.append(np.concatenate((feature_dict[imagename][0], feature_dict[imagename][1])))
+                y_va.append((valence, arousal))
+                masks_va.append(mask_va)
                 
-                y_expr.append(expression)
-                masks_expr.append(mask_expr)
+                y_ex.append(expression)
+                masks_ex.append(mask_ex)
                 
-                y_aus.append(aus)
-                masks_aus.append(mask_aus)
+                y_au.append(aus)
+                masks_au.append(mask_au)
             else:
-                num_missed+=1
-    X=np.array(X)
-    y_va=np.array(y_va)
-    y_expr=np.array(y_expr)
-    y_aus=np.array(y_aus)
-    masks_va=np.array(masks_va).astype(np.float32)
-    masks_expr=np.array(masks_expr).astype(np.float32)
-    masks_aus=np.array(masks_aus).astype(np.float32)
-    print(X.shape,y_va.shape,y_expr.shape,y_aus.shape,masks_va.shape,num_missed)
+                num_missed += 1
 
-    return X,y_va,y_expr,y_aus,masks_va,masks_expr,masks_aus
+    X = np.array(X)
+    y_va = np.array(y_va)
+    y_ex = np.array(y_ex)
+    y_au = np.array(y_au)
+    masks_va = np.array(masks_va).astype(np.float32)
+    masks_ex = np.array(masks_ex).astype(np.float32)
+    masks_au = np.array(masks_au).astype(np.float32)
 
-def get_input(filename, feature_dict, onlyfilename=False):
-    with open(filename) as f:
-        mtl_lines = f.read().splitlines()
-    num_missed=0
-    X,y_va,y_expr,y_aus=[],[],[],[]
-    masks_va,masks_expr,masks_aus=[],[],[]
-    for line in mtl_lines[1:]:
-        splitted_line=line.split(',')
-        imagename=splitted_line[0]
-        valence=float(splitted_line[1])
-        arousal=float(splitted_line[2])
-        expression=int(splitted_line[3])
-        aus=list(map(int,splitted_line[4:]))
-        
-        mask_VA=(valence>-5 and arousal>-5)
-        if not mask_VA:
-            valence=arousal=0
-            
-        mask_expr=(expression>-1)
-        if not mask_expr:
-            expression=0
-            
-        mask_aus=min(aus)>=0
-        if not mask_aus:
-            aus=[0]*len(aus)
-        if mask_VA or mask_expr or mask_aus:
-            if imagename in feature_dict or onlyfilename:
-                #X.append(filename2featuresAll[imagename][0])
-                if onlyfilename:
-                    X.append(imagename)
-                else:
-                    X.append(np.concatenate((feature_dict[imagename][0],feature_dict[imagename][1])))
-                y_va.append((valence,arousal))
-                masks_va.append(mask_VA)
-                
-                y_expr.append(expression)
-                masks_expr.append(mask_expr)
-                
-                y_aus.append(aus)
-                masks_aus.append(mask_aus)
-            else:
-                num_missed+=1
-    X=np.array(X)
-    y_va=np.array(y_va)
-    y_expr=np.array(y_expr)
-    y_aus=np.array(y_aus)
-    masks_va=np.array(masks_va).astype(np.float32)
-    masks_expr=np.array(masks_expr).astype(np.float32)
-    masks_aus=np.array(masks_aus).astype(np.float32)
-    print(X.shape,y_va.shape,y_expr.shape,y_aus.shape,masks_va.shape,num_missed)
-
-    return X,y_va,y_expr,y_aus,masks_va,masks_expr,masks_aus
+    return X, y_va, y_ex, y_au, masks_va, masks_ex, masks_au
 
 class ImageSAW2(Dataset):
     def __init__(self, filename, img_path):
         super(ImageSAW2, self).__init__()
         with open(filename) as f:
-            mtl_lines = f.read().splitlines()
-        self.X = mtl_lines[1:]
+            lines = f.read().splitlines()
+        self.X = lines[1:]
         self.img_path = img_path
         self.transform = transforms.Compose(
             [
@@ -136,18 +82,6 @@ class ImageSAW2(Dataset):
         img = pil_loader(os.path.join(self.img_path, self.X[i]))
         img = self.transform(img)
         return img
-
-    def __len__(self):
-        return len(self.X)
-
-# s-Aff-Wild2
-class SAW2(Dataset):
-    def __init__(self, filename, feature_dict):
-        super(SAW2, self).__init__()
-        self.X , self.y_va, self.y_ex, self.y_au, self.mask_va, self.mask_ex, self.mask_au = get_dataset(filename, feature_dict)
-    
-    def __getitem__(self, i):
-        return self.X[i] , self.y_va[i], self.y_ex[i], self.y_au[i], self.mask_va[i], self.mask_ex[i], self.mask_au[i]
 
     def __len__(self):
         return len(self.X)

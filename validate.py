@@ -1,15 +1,11 @@
 import os
 import pickle
-import pandas as pd
-from dataset import SAW2, RawSAW2
-from tqdm import tqdm
-from torch.utils.data import DataLoader
-from helpers import *
-from model import MTL, AMTL
-import torch.optim as optim
 import argparse
-
-DATA_DIR = '../../../Data/ABAW4/'
+from tqdm import tqdm
+from model import MTL, AMTL
+from helpers import *
+from dataset import RawSAW2
+from torch.utils.data import DataLoader
 
 def val(net, validldr):
     net.eval()
@@ -83,28 +79,28 @@ def val(net, validldr):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Validate task')
+    parser = argparse.ArgumentParser(description='Validate model')
     parser.add_argument('--input', '-i', default='', help='Input file')
     parser.add_argument('--net', '-n', default='amtl', help='Net name')
     parser.add_argument('--batch', '-b', type=int, default=256, help='Batch size')
+    parser.add_argument('--extractor', '-e', default='enet_b0_8_best_vgaf.pt', help='Extractor name')
     args = parser.parse_args()
     resume = args.input
     net_name = args.net
+    data_dir = args.datadir
     batch_size = args.batch
+    extractor_path = './model/' + args.extractor
 
-    valid_file = os.path.join(DATA_DIR, 'validation_set_annotations.txt')
-    image_path = os.path.join(DATA_DIR,'cropped_aligned')
-    with open(os.path.join(DATA_DIR, 'saw2_enet_b0_8_best_vgaf.pickle'), 'rb') as handle:
-        filename2featuresAll=pickle.load(handle)
+    valid_file = os.path.join(data_dir, 'validation_set_annotations.txt')
+    image_path = os.path.join(data_dir,'cropped_aligned')
 
-    validset = SAW2(valid_file, filename2featuresAll)
     validset = RawSAW2(valid_file, image_path)
     validldr = DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     if net_name == 'amtl':
-        net = AMTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
+        net = AMTL(extractor=extractor_path)
     else:
-        net = MTL(in_channels=1288, extractor='./model/enet_b0_8_best_vgaf.pt')
+        net = MTL(extractor=extractor_path)
 
     if resume != '':
         print("Resume form | {} ]".format(resume))
@@ -114,7 +110,7 @@ def main():
 
     val_metrics_va, val_metrics_ex, val_metrics_au, val_metrics = val(net, validldr)
 
-    infostr = {'EpochNo: {:.5f},{:.5f},{:.5f},{:.5f}'
+    infostr = {'Validation metrics: {:.5f},{:.5f},{:.5f},{:.5f}'
             .format(val_metrics_va,
                     val_metrics_ex,
                     val_metrics_au,
