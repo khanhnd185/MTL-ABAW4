@@ -177,3 +177,33 @@ class AMTL(nn.Module):
         ex = self.attention(q, v, v)
 
         return va, ex, au
+
+class MultiHead(nn.Module):
+    def __init__(self, feature_size, extractor=None, freeze_au=True):
+        super(MultiHead, self).__init__()
+        self.AU_metric_dim = 12
+        self.EX_metric_dim = 8
+        self.VA_metric_dim = 2
+
+        if extractor is not None:
+            self.extractor = Extractor(extractor)
+        else:
+            self.extractor = nn.Identity()
+
+        self.va = Dense(feature_size, 2, activation='tanh', bn=True)
+        self.ex = Dense(feature_size, 8, activation='softmax')
+        self.au = Dense(feature_size, 12, activation='sigmoid')
+
+        for p in self.extractor.parameters():
+            p.requires_grad = False
+
+        if freeze_au:
+            for p in self.au.parameters():
+                p.requires_grad = False
+
+    def forward(self, x):
+        x = self.extractor(x)
+        va = self.va(x)
+        ex = self.ex(x)
+        au = self.au(x)
+        return va, ex, au

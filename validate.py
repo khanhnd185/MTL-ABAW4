@@ -2,7 +2,7 @@ import os
 import pickle
 import argparse
 from tqdm import tqdm
-from model import MTL, AMTL
+from model import *
 from helpers import *
 from dataset import RawSAW2
 from torch.utils.data import DataLoader
@@ -71,10 +71,14 @@ def val(net, validldr):
     all_yhat_va = all_yhat_va[all_mask_va == 1]
     all_yhat_ex = all_yhat_ex[all_mask_ex == 1]
     all_yhat_au = all_yhat_au[all_mask_au == 1]
-    va_metrics = VA_metric(all_y_va, all_yhat_va)
-    ex_metrics = EX_metric(all_y_ex, all_yhat_ex)
-    au_metrics = AU_metric(all_y_au, all_yhat_au)
+    va_metrics, va_metrics_detail = VA_metric(all_y_va, all_yhat_va)
+    ex_metrics, ex_metrics_detail = EX_metric(all_y_ex, all_yhat_ex)
+    au_metrics, au_metrics_detail = AU_metric(all_y_au, all_yhat_au)
     performance = va_metrics + ex_metrics + au_metrics
+    print('va: ', va_metrics_detail)
+    print('ex: ', ex_metrics_detail)
+    print('au: ', au_metrics_detail)
+
     return va_metrics, ex_metrics, au_metrics, performance
 
 
@@ -83,6 +87,7 @@ def main():
     parser.add_argument('--input', '-i', default='', help='Input file')
     parser.add_argument('--net', '-n', default='amtl', help='Net name')
     parser.add_argument('--batch', '-b', type=int, default=256, help='Batch size')
+    parser.add_argument('--datadir', '-d', default='../../../Data/ABAW4/', help='Data folder path')
     parser.add_argument('--extractor', '-e', default='enet_b0_8_best_vgaf.pt', help='Extractor name')
     args = parser.parse_args()
     resume = args.input
@@ -99,6 +104,8 @@ def main():
 
     if net_name == 'amtl':
         net = AMTL(extractor=extractor_path)
+    elif net_name == 'multihead':
+        net = MultiHead(1288, extractor=extractor_path)
     else:
         net = MTL(extractor=extractor_path)
 

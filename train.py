@@ -4,7 +4,7 @@ import argparse
 import pandas as pd
 from sam import SAM
 from tqdm import tqdm
-from model import MTL, AMTL
+from model import *
 from helpers import *
 from dataset import UniSAW2
 from torch.utils.data import DataLoader
@@ -15,7 +15,32 @@ metric_func = {
     'AU': AU_metric,
 }
 
-def train(net, trainldr, optimizer, epoch, criteria, task):
+def train(net, trainldr, optimizer, epoch, epochs, learning_rate, criteria, task):
+    total_losses = AverageMeter()
+    net.train()
+    train_loader_len = len(trainldr)
+    yhat = {}
+    for batch_idx, (inputs, y) in enumerate(tqdm(trainldr)):
+        mask = torch.ones(inputs.shape[0])
+        mask = mask.float()
+        mask = mask.cuda()
+        adjust_learning_rate(optimizer, epoch, epochs, learning_rate, batch_idx, train_loader_len)
+        if task == 'EX':
+            y = y.long()
+        else:
+            y = y.float()
+        inputs = inputs.cuda()
+        y = y.cuda()
+        optimizer.zero_grad()
+        yhat['VA'], yhat['EX'], yhat['AU'] = net(inputs)
+        loss = criteria[task](yhat[task], y, mask)
+        loss.backward()
+        optimizer.step()
+
+        total_losses.update(loss.data.item(), inputs.size(0))
+    return total_losses.avg()
+
+def train_sam(net, trainldr, optimizer, epoch, epochs, learning_rate, criteria, task):
     total_losses = AverageMeter()
     net.train()
     train_loader_len = len(trainldr)
@@ -74,7 +99,7 @@ def val(net, validldr, criteria, task):
                 all_yhat = torch.cat((all_yhat, yhat[task]), 0)
     all_y = all_y.cpu().numpy()
     all_yhat = all_yhat.cpu().numpy()
-    metrics = metric_func[task](all_y, all_yhat)
+    metrics, _ = metric_func[task](all_y, all_yhat)
     return total_losses.avg(), metrics
 
 
@@ -90,6 +115,7 @@ def main():
     parser.add_argument('--datadir', '-d', default='../../../Data/ABAW4/', help='Data folder path')
     parser.add_argument('--tfeature', '-f', default='saw2_enet_b0_8_best_vgaf_aug.pickle', help='Train image feature')
     parser.add_argument('--vfeature', '-v', default='saw2_enet_b0_8_best_vgaf.pickle', help='Validation image feature')
+    parser.add_argument('--sam', '-s', action='store_true', help='Apply SAM optimizer')
 
     args = parser.parse_args()
     task = args.task
@@ -120,6 +146,8 @@ def main():
     start_epoch = 0
     if net_name == 'amtl':
         net = AMTL(freeze_au=(task != 'AU'))
+    elif net_name == 'multihead':
+        net = MultiHead(1288, freeze_au=(task != 'AU'))
     else:
         net = MTL(freeze_au=(task != 'AU'))
 
@@ -152,8 +180,11 @@ def main():
     train_criteria['EX'] = MaskedCELoss(weight=train_ex_weight, ignore_index=-1)
     valid_criteria['EX'] = MaskedCELoss(weight=valid_ex_weight, ignore_index=-1)
 
-    base_optimizer = torch.optim.SGD
-    optimizer = SAM(net.parameters(), base_optimizer, lr=learning_rate, momentum=0.9, weight_decay=1.0/batch_size)
+    if args.sam:
+        base_optimizer = torch.optim.SGD
+        optimizer = SAM(net.parameters(), base_optimizer, lr=learning_rate, momentum=0.9, weight_decay=1.0/batch_size)
+    else:
+        optimizer = torch.optim.AdamW(net.parameters(), betas=(0.9, 0.999), lr=learning_rate, weight_decay=1.0/batch_size)
     best_performance = 0.0
     epoch_from_last_improvement = 0
 
@@ -166,7 +197,10 @@ def main():
 
     for epoch in range(start_epoch, epochs):
         lr = optimizer.param_groups[0]['lr']
-        train_loss = train(net, trainldr, optimizer, epoch, train_criteria, task)
+        if args.sam:
+            train_loss = train_sam(net, trainldr, optimizer, epoch, epochs, learning_rate, train_criteria, task)
+        else:
+            train_loss = train(net, trainldr, optimizer, epoch, epochs, learning_rate, train_criteria, task)
         val_loss, val_metrics = val(net, validldr, valid_criteria, task)
 
         infostr = {'Task {}: {},{:.5f},{:.5f},{:.5f},{:.5f}'

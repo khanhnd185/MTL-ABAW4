@@ -136,12 +136,13 @@ def EX_metric(y, yhat):
         else:
             yhat = np.argmax(yhat, axis=-1)
 
-    return f1_score(y, yhat, average='macro')
+    return f1_score(y, yhat, average='macro'), f1_score(y, yhat, average=None)
 
 
 def VA_metric(y, yhat):
+    cccs = (float(CCC_score(y[:,0], yhat[:,0])), float(CCC_score(y[:,1], yhat[:,1])))
     avg_ccc = float(CCC_score(y[:,0], yhat[:,0]) + CCC_score(y[:,1], yhat[:,1])) / 2
-    return avg_ccc
+    return avg_ccc, cccs
 
 
 def AU_metric(y, yhat, thresh=0.5):
@@ -151,7 +152,7 @@ def AU_metric(y, yhat, thresh=0.5):
     for i in range(label_size):
         f1 = f1_score(y[:, i], yhat[:, i])
         f1s.append(f1)
-    return np.mean(f1s)
+    return np.mean(f1s), f1s
 
 def normalize_digraph(A):
     b, n, _ = A.shape
