@@ -146,6 +146,8 @@ def main():
     start_epoch = 0
     if net_name == 'amtl':
         net = AMTL(freeze_au=(task != 'AU'))
+    elif net_name == 'fusion':
+        net = FMTL(freeze_au=(task != 'AU'))
     elif net_name == 'multihead':
         net = MultiHead(1288, freeze_au=(task != 'AU'))
     else:

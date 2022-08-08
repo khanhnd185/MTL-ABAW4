@@ -102,6 +102,18 @@ class Extractor(nn.Module):
         x = torch.cat((x, score), dim=-1)
         return x
 
+class Fusion(nn.Module):
+    def __init__(self, hidden_size=20):
+        super(Fusion, self).__init__()
+        self.layer1 = Dense(20, hidden_size, activation='relu')
+        self.layer2 = Dense(hidden_size, 8, activation='softmax')
+    
+    def forward(self, ex, va):
+        x = torch.cat((ex, va), dim=-1)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        return x
+
 class MTL(nn.Module):
     def __init__(self, in_channels=1288, neighbor_num=4, metric='dots', extractor=None, freeze_au=True):
         super(MTL, self).__init__()
@@ -206,4 +218,43 @@ class MultiHead(nn.Module):
         va = self.va(x)
         ex = self.ex(x)
         au = self.au(x)
+        return va, ex, au
+
+class FMTL(nn.Module):
+    def __init__(self, in_channels=1288, neighbor_num=4, metric='dots', extractor=None, freeze_au=True):
+        super(FMTL, self).__init__()
+        self.AU_metric_dim = 12
+        self.EX_metric_dim = 8
+        self.VA_metric_dim = 2
+        self.attention_dim = 64
+
+        if extractor is not None:
+            self.extractor = Extractor(extractor)
+        else:
+            self.extractor = nn.Identity()
+
+        self.in_channels = in_channels
+        self.out_channels = self.in_channels
+        self.au = ANFL(self.out_channels, self.AU_metric_dim, neighbor_num, metric)
+
+        self.va = Dense(in_channels, self.VA_metric_dim, activation='tanh', bn=True)
+        self.ex = Dense(in_channels, self.EX_metric_dim, activation='none')
+
+        self.fusion = Fusion()
+
+        for p in self.extractor.parameters():
+            p.requires_grad = False
+
+        if freeze_au:
+            for p in self.au.parameters():
+                p.requires_grad = False
+
+    def forward(self, x):
+        x = self.extractor(x)
+        au, f_v = self.au(x)
+        va = self.va(x)
+        ex = self.ex(x)
+
+        ex = self.fusion(ex, au)
+
         return va, ex, au
