@@ -1,3 +1,4 @@
+from turtle import forward
 import torch
 import numpy as np
 import torch.nn as nn
@@ -92,6 +93,33 @@ class MaskedCELoss(nn.Module):
         loss = loss.mean(dim=-1)
         loss = loss * mask
         return loss.sum() / (mask.sum() + EPS)
+
+class DistillationLoss(nn.Module):
+    def __init__(self, alpha, func):
+        super(DistillationLoss, self).__init__() 
+        self.alpha = alpha
+        self.func = func
+    
+    def forward(self, yhat, ysoft, y, mask):
+        return (1 - self.alpha) * self.func(yhat, ysoft, mask) + self.alpha * self.func(yhat, y, mask)
+
+
+class DistillationLossFromLogit(nn.Module):
+    def __init__(self, alpha, func, temp):
+        super(DistillationLossFromLogit, self).__init__() 
+        self.alpha = alpha
+        self.func = func
+        self.temp = temp
+        self.distill_loss = nn.KLDivLoss(log_target=True, reduction='batchmean')
+        self.softmax = nn.Softmax(dim=-1)
+    
+    def forward(self, yhat, ysoft, y, mask):
+        return self.distill_loss(
+            torch.log(self.softmax(ysoft / self.temp)),
+            torch.log(self.softmax(yhat / self.temp))
+        ) * self.temp**2
+
+
 
 class MaskNegativeCCCLoss(nn.Module):
     def __init__(self):
